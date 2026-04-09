@@ -1,0 +1,30 @@
+
+============================================================
+Execution Summary - 362-850-019_mlx_20260326_130244
+============================================================
+Part Number: 362-850-019
+Supplier: mlx
+Status: SUCCESS
+Duration: 0.01s
+
+Sections:
+  - Expected: 27
+  - Processed: 0
+  - Failed: 0
+
+Data:
+  - Input points: 0
+  - Output rows: 0
+
+Metrics Generated: None
+
+Quality:
+  - Warnings: 0
+  - Errors: 0
+
+Custom Metrics:
+  - pieces_discovered: 8.0
+  - pieces_rejected: 1.0
+  - pieces_success: 0.0
+  - pieces_failed: 0.0
+============================================================

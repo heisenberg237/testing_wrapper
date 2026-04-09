@@ -1,0 +1,48 @@
+suppliers:
+  CZT:
+    aliases: ["CZT", "LISI"]
+    parser_class: "CZTParser"
+    description: "Fournisseur CZT"
+    piece_folder_regex_by_part:
+      "362-850-019": "^362-850-019.*$"
+      "364-850-019": "^364-850-019.*$"
+    geom_folder_name: "GEOM"
+    side_tokens:
+      INT: int
+      EXT: ext
+
+  MLX:
+    aliases: ["MLX"]
+    parser_class: "MLXParser"
+    description: "Fournisseur MLX (configuration standard 27 sections)"
+    piece_folder_regex_by_part:
+      "362-850-019": "^(\\d{3}[_-]\\d{3}[_-]\\d{3}).*_(INT_PC|INT_PUC|FINAL_PP|FINAL_PF|FINAL).*_(\\D{2}\\d{6}-[A-Z0-9]).*_(\\d{8})_(\\d{6})_.*$"
+      "364-850-019": "^(\\d{3}[_-]\\d{3}[_-]\\d{3}).*_(INT_PC|INT_PUC|FINAL_PP|FINAL_PF|FINAL).*_(\\D{2}\\d{6}-[A-Z0-9]).*_(\\d{8})_(\\d{6})_.*$"
+    geom_folder_name: "GEOM"
+    side_tokens:
+      INT: int
+      EXT: ext
+
+  TECT:
+    aliases: ["TECT", "PA", "WTC"]
+    parser_class: "TECTParser"
+    description: "Fournisseur TECT (configuration standard 27 sections)"
+    piece_folder_regex_by_part:
+      "362-850-019": "^362_.*$"
+      "364-850-019": "^364_.*$"
+    geom_folder_name: "GEOM"
+    side_tokens:
+      INT: int
+      EXT: ext
+
+  AGB:
+    aliases: ["AGB"]
+    parser_class: "AGBParser"
+    description: "Fournisseur AGB (configuration standard 27 sections)"
+    piece_folder_regex_by_part:
+      "362-850-019": "^362_.*$"
+      "364-850-019": "^364_.*$"
+    geom_folder_name: "GEOM"
+    side_tokens:
+      INT: int
+      EXT: ext

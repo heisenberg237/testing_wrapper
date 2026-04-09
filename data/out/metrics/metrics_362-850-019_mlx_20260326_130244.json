@@ -1,0 +1,24 @@
+{
+  "execution_id": "362-850-019_mlx_20260326_130244",
+  "part_number": "362-850-019",
+  "supplier": "mlx",
+  "start_time": "2026-03-26T13:02:44.998113",
+  "end_time": "2026-03-26T13:02:45.003113",
+  "status": "success",
+  "sections_processed": 0,
+  "sections_expected": 27,
+  "sections_failed": 0,
+  "metrics_generated": [],
+  "processing_duration_seconds": 0.005,
+  "input_points_count": 0,
+  "output_rows_count": 0,
+  "warnings_count": 0,
+  "errors_count": 0,
+  "error_messages": [],
+  "custom_metrics": {
+    "pieces_discovered": 8.0,
+    "pieces_rejected": 1.0,
+    "pieces_success": 0.0,
+    "pieces_failed": 0.0
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "execution_id": "362-850-019_mlx_20260408_135631",
+  "part_number": "362-850-019",
+  "supplier": "mlx",
+  "start_time": "2026-04-08T13:56:31.121549",
+  "end_time": "2026-04-08T13:56:32.796603",
+  "status": "failure",
+  "sections_processed": 27,
+  "sections_expected": 27,
+  "sections_failed": 0,
+  "metrics_generated": [],
+  "processing_duration_seconds": 1.675054,
+  "input_points_count": 39347,
+  "output_rows_count": 0,
+  "warnings_count": 0,
+  "errors_count": 1,
+  "error_messages": [
+    "Failed to compute thickness: 'NoneType' object has no attribute 'build'"
+  ],
+  "custom_metrics": {
+    "pieces_discovered_thickness": 1.0,
+    "pieces_rejected": 0.0,
+    "pieces_success": 1.0,
+    "pieces_failed": 0.0
+  }
+}

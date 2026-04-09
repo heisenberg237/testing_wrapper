@@ -1,0 +1,4 @@
+serialNumber;HK147127-0
+partNumber;362-850-019-6
+supplier;CZT
+supplierShippingDate;2022-07-01

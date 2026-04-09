@@ -1,0 +1,35 @@
+
+============================================================
+Execution Summary - 362-850-019_mlx_20260408_135751
+============================================================
+Part Number: 362-850-019
+Supplier: mlx
+Status: FAILURE
+Duration: 13.21s
+
+Sections:
+  - Expected: 27
+  - Processed: 27
+  - Failed: 0
+
+Data:
+  - Input points: 39,347
+  - Output rows: 0
+
+Metrics Generated: None
+
+Quality:
+  - Warnings: 0
+  - Errors: 1
+
+Errors:
+  - Failed to compute thickness: Mismatch in nominal_scalar_heatmap section labels.
+Missing: ['CR05', 'CR08', 'CR09', 'CR15', 'CR25', 'CR91', 'CR94']
+Unexpected: []
+
+Custom Metrics:
+  - pieces_discovered_thickness: 1.0
+  - pieces_rejected: 0.0
+  - pieces_success: 1.0
+  - pieces_failed: 0.0
+============================================================

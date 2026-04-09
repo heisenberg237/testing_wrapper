@@ -1,0 +1,26 @@
+{
+  "execution_id": "362-850-019_mlx_20260408_135010",
+  "part_number": "362-850-019",
+  "supplier": "mlx",
+  "start_time": "2026-04-08T13:50:10.224801",
+  "end_time": "2026-04-08T13:50:12.224865",
+  "status": "failure",
+  "sections_processed": 27,
+  "sections_expected": 27,
+  "sections_failed": 0,
+  "metrics_generated": [],
+  "processing_duration_seconds": 2.000064,
+  "input_points_count": 39347,
+  "output_rows_count": 0,
+  "warnings_count": 0,
+  "errors_count": 1,
+  "error_messages": [
+    "Failed to compute thickness: type object 'MetricType' has no attribute 'THICKNESS_EXTRADOS'"
+  ],
+  "custom_metrics": {
+    "pieces_discovered_thickness": 1.0,
+    "pieces_rejected": 0.0,
+    "pieces_success": 1.0,
+    "pieces_failed": 0.0
+  }
+}

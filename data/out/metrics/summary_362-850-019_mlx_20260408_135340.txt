@@ -1,0 +1,33 @@
+
+============================================================
+Execution Summary - 362-850-019_mlx_20260408_135340
+============================================================
+Part Number: 362-850-019
+Supplier: mlx
+Status: FAILURE
+Duration: 1.91s
+
+Sections:
+  - Expected: 27
+  - Processed: 27
+  - Failed: 0
+
+Data:
+  - Input points: 39,347
+  - Output rows: 0
+
+Metrics Generated: None
+
+Quality:
+  - Warnings: 0
+  - Errors: 1
+
+Errors:
+  - Failed to compute thickness: Unknown metric type: thickness
+
+Custom Metrics:
+  - pieces_discovered_thickness: 1.0
+  - pieces_rejected: 0.0
+  - pieces_success: 1.0
+  - pieces_failed: 0.0
+============================================================

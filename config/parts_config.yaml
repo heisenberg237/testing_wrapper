@@ -1,0 +1,453 @@
+parts:
+  # Part 362 (1A) - MLX (27 sections, standard)
+  - part_number: "362-850-019"
+    supplier: MLX
+    operation: OP250
+    mletracking: "bayTracking"
+    sections_count: 27
+    input_file_pattern: "*.mea"
+    output_file_pattern: "{serial_number}_{supplier}_{part_number}_{operation}_{metric}.csv"
+    piece_folder_regex: "^\\d{3}[_-]\\d{3}[_-]\\d{3}.*$"
+    sn_full_regex: "(?P<sn>\\D{2}\\d{6}(?:-[A-Z0-9]{1})?)"
+    geom_folder_name: "GEOM"
+    geom_file_extensions: [".mea"]
+    geom_file_regex: "(?P<side_indicator>[A-Za-z]+?)(?P<section>\\d+)"
+    folder_metadata_regex: "^(?P<part_number>\\d{3}[_-]\\d{3}[_-]\\d{3}).*_(?P<op>INT_PC).*_(?P<serial_number>\\D{2}\\d{6}-[A-Z0-9]).*_(?P<measurement_date>\\d{8})_(?P<measurement_time>\\d{6})_.*$"
+    default_side: "int"
+    require_both_sides: false
+    strict_section_count: true
+    supplier_settings:
+      nominal_z_tolerance: 0.5
+      number_points_end_of_wings_to_delete: 2
+      quality_checks: true
+      file_prefix_side_map:
+        I: int
+        E: ext
+    nominal:
+      section_file_path: "data/nominalsections/nominalSections_1A_MLX_OP250_Int.xlsx"
+      skeleton_file_path: "data/nominalskeletons/nominalSkeleton_1A_MLX_OP250.xlsx"
+      heatmap_widthness_file_path: "data/nominalheatmapswidthness/heatmapNominalOP250Widthness1A_MLX.csv"
+      heatmap_thickness_intrados_file_path: "data/nominalheatmapsthickness/heatmapNominalThicknessIntrados1A.csv"
+      heatmap_thickness_extrados_file_path: "data/nominalheatmapsthickness/heatmapNominalThicknessExtrados1A.csv"
+      sectionlabel_to_znominalcoord_map:
+        CR03: 281.1
+        CR05: 313.1
+        CR06: 329.1
+        CR08: 345.1
+        CR09: 361.1
+        CR10: 377.2
+        CR15: 409.2
+        CR20: 441.1
+        CR25: 473.1
+        CR30: 505.0
+        CR35: 537.0
+        CR40: 568.9
+        CR45: 600.8
+        CR50: 632.6
+        CR54: 664.5
+        CR58: 696.3
+        CR63: 728.2
+        CR67: 760.0
+        CR71: 791.9
+        CR75: 823.8
+        CR79: 855.8
+        CR84: 887.8
+        CR88: 919.8
+        CR90: 935.9
+        CR91: 952.0
+        CR93: 968.1
+        CR94: 984.2
+
+  - part_number: "362-850-019"
+    supplier: MLX
+    operation: OP350
+    mletracking: "bayTracking"
+    sections_count: 27
+    input_file_pattern: "*.mea"
+    output_file_pattern: "{serial_number}_{supplier}_{part_number}_{operation}_{metric}.csv"
+    piece_folder_regex: "^\\d{3}[_-]\\d{3}[_-]\\d{3}.*$"
+    sn_full_regex: "(?P<sn>\\D{2}\\d{6}(?:-[A-Z0-9]{1})?)"
+    geom_folder_name: "GEOM"
+    geom_file_extensions: [".mea"]
+    geom_file_regex: "(?P<side_indicator>[A-Za-z]+?)(?P<section>\\d+)"
+    folder_metadata_regex: "^(?P<part_number>\\d{3}[_-]\\d{3}[_-]\\d{3}).*_(?P<op>INT_PUC).*_(?P<serial_number>\\D{2}\\d{6}-[A-Z0-9]).*_(?P<measurement_date>\\d{8})_(?P<measurement_time>\\d{6})_.*$"
+    default_side: "int"
+    require_both_sides: false
+    strict_section_count: true
+    supplier_settings:
+      nominal_z_tolerance: 0.5
+      number_points_end_of_wings_to_delete: 2
+      quality_checks: true
+      file_prefix_side_map:
+        I: int
+        E: ext
+    nominal:
+      section_file_path: "data/nominalsections/nominalSections1APA.xlsx"
+      skeleton_file_path: "data/nominalskeletons/nominalSkeleton1APA.xlsx"
+      heatmap_widthness_file_path: "data/nominalheatmapswidthness/heatmapNominalWidthness1A_PA.csv"
+      heatmap_thickness_intrados_file_path: "data/nominalheatmapsthickness/heatmapNominalThicknessIntrados1A.csv"
+      heatmap_thickness_extrados_file_path: "data/nominalheatmapsthickness/heatmapNominalThicknessExtrados1A.csv"
+      sectionlabel_to_znominalcoord_map:
+        CR03: 281.1
+        CR05: 313.1
+        CR06: 329.1
+        CR08: 345.1
+        CR09: 361.1
+        CR10: 377.2
+        CR15: 409.2
+        CR20: 441.1
+        CR25: 473.1
+        CR30: 505.0
+        CR35: 537.0
+        CR40: 568.9
+        CR45: 600.8
+        CR50: 632.6
+        CR54: 664.5
+        CR58: 696.3
+        CR63: 728.2
+        CR67: 760.0
+        CR71: 791.9
+        CR75: 823.8
+        CR79: 855.8
+        CR84: 887.8
+        CR88: 919.8
+        CR90: 935.9
+        CR91: 952.0
+        CR93: 968.1
+        CR94: 984.2
+
+  - part_number: "362-850-019"
+    supplier: MLX
+    operation: OP450
+    mletracking: "bayTracking"
+    sections_count: 27
+    input_file_pattern: "*.mea"
+    output_file_pattern: "{serial_number}_{supplier}_{part_number}_{operation}_{metric}.csv"
+    piece_folder_regex: "^\\d{3}[_-]\\d{3}[_-]\\d{3}.*$"
+    sn_full_regex: "(?P<sn>\\D{2}\\d{6}(?:-[A-Z0-9]{1})?)"
+    geom_folder_name: "GEOM"
+    geom_file_extensions: [".mea"]
+    geom_file_regex: "(?P<side_indicator>[A-Za-z]+?)(?P<section>\\d+)"
+    folder_metadata_regex: "^(?P<part_number>\\d{3}[_-]\\d{3}[_-]\\d{3}).*_(?P<op>FINAL_PF|FINAL_PP).*_(?P<serial_number>\\D{2}\\d{6}-[A-Z0-9]).*_(?P<measurement_date>\\d{8})_(?P<measurement_time>\\d{6})_.*$"
+    default_side: "int"
+    require_both_sides: false
+    strict_section_count: true
+    supplier_settings:
+      nominal_z_tolerance: 0.5
+      number_points_end_of_wings_to_delete: 2
+      quality_checks: true
+      file_prefix_side_map:
+        I: int
+        E: ext
+    nominal:
+      section_file_path: "data/nominalsections/nominalSections1APA.xlsx"
+      skeleton_file_path: "data/nominalskeletons/nominalSkeleton1APA.xlsx"
+      heatmap_widthness_file_path: "data/nominalheatmapswidthness/heatmapNominalWidthness1A_PA.csv"
+      heatmap_thickness_intrados_file_path: "data/nominalheatmapsthickness/heatmapNominalThicknessIntrados1A.csv"
+      heatmap_thickness_extrados_file_path: "data/nominalheatmapsthickness/heatmapNominalThicknessExtrados1A.csv"
+      sectionlabel_to_znominalcoord_map:
+        CR03: 281.1
+        CR05: 313.1
+        CR06: 329.1
+        CR08: 345.1
+        CR09: 361.1
+        CR10: 377.2
+        CR15: 409.2
+        CR20: 441.1
+        CR25: 473.1
+        CR30: 505.0
+        CR35: 537.0
+        CR40: 568.9
+        CR45: 600.8
+        CR50: 632.6
+        CR54: 664.5
+        CR58: 696.3
+        CR63: 728.2
+        CR67: 760.0
+        CR71: 791.9
+        CR75: 823.8
+        CR79: 855.8
+        CR84: 887.8
+        CR88: 919.8
+        CR90: 935.9
+        CR91: 952.0
+        CR93: 968.1
+        CR94: 984.2
+
+  - part_number: "362-850-019"
+    supplier: MLX
+    operation: OP650
+    mletracking: "bayTracking"
+    sections_count: 27
+    input_file_pattern: "*.mea"
+    output_file_pattern: "{serial_number}_{supplier}_{part_number}_{operation}_{metric}.csv"
+    piece_folder_regex: "^\\d{3}[_-]\\d{3}[_-]\\d{3}.*$"
+    sn_full_regex: "(?P<sn>\\D{2}\\d{6}(?:-[A-Z0-9]{1})?)"
+    geom_folder_name: "GEOM"
+    geom_file_extensions: [".mea"]
+    geom_file_regex: "(?P<side_indicator>[A-Za-z]+?)(?P<section>\\d+)"
+    folder_metadata_regex: "^(?P<part_number>\\d{3}[_-]\\d{3}[_-]\\d{3}).*_(?P<op>FINAL).*_(?P<serial_number>\\D{2}\\d{6}-[A-Z0-9]).*_(?P<measurement_date>\\d{8})_(?P<measurement_time>\\d{6})_.*$"
+    default_side: "int"
+    require_both_sides: false
+    strict_section_count: true
+    supplier_settings:
+      nominal_z_tolerance: 0.5
+      number_points_end_of_wings_to_delete: 2
+      quality_checks: true
+      file_prefix_side_map:
+        I: int
+        E: ext
+    nominal:
+      section_file_path: "data/nominalsections/nominalSections1APA.xlsx"
+      skeleton_file_path: "data/nominalskeletons/nominalSkeleton1APA.xlsx"
+      heatmap_widthness_file_path: "data/nominalheatmapswidthness/heatmapNominalWidthness1A_PA.csv"
+      heatmap_thickness_intrados_file_path: "data/nominalheatmapsthickness/heatmapNominalThicknessIntrados1A.csv"
+      heatmap_thickness_extrados_file_path: "data/nominalheatmapsthickness/heatmapNominalThicknessExtrados1A.csv"
+      sectionlabel_to_znominalcoord_map:
+        CR03: 281.1
+        CR05: 313.1
+        CR06: 329.1
+        CR08: 345.1
+        CR09: 361.1
+        CR10: 377.2
+        CR15: 409.2
+        CR20: 441.1
+        CR25: 473.1
+        CR30: 505.0
+        CR35: 537.0
+        CR40: 568.9
+        CR45: 600.8
+        CR50: 632.6
+        CR54: 664.5
+        CR58: 696.3
+        CR63: 728.2
+        CR67: 760.0
+        CR71: 791.9
+        CR75: 823.8
+        CR79: 855.8
+        CR84: 887.8
+        CR88: 919.8
+        CR90: 935.9
+        CR91: 952.0
+        CR93: 968.1
+        CR94: 984.2
+
+  # Part 362 (1A) - CZT (20 sections)
+  - part_number: "362-850-019"
+    supplier: CZT
+    operation: OP420
+    mletracking: "mleTracking"
+    sections_count: 20
+    input_file_pattern: "*.xyz"
+    output_file_pattern: "{serial_number}_{supplier}_{part_number}_{operation}_{metric}.csv"
+    piece_folder_regex: "^\\D{2}\\d{6}-[A-Z0-9].*$"
+    geom_folder_name: "GEOM"
+    geom_file_extensions: [".mea", ".xyz"]
+    geom_file_regex: "^Points_(?P<side_indicator>[A-Za-z]{3})_(?P<part_number>\\d{3}[-_]\\d{3}[-_]\\d{3}).*?_(?P<serial_number>[A-Z]{2}\\d{6}-[A-Z0-9]).*"
+    folder_metadata_regex: "^(?P<serial_number>\\D{2}\\d{6}-[A-Z0-9])$"
+    default_side: "int"
+    require_both_sides: false
+    strict_section_count: true
+    supplier_settings:
+      nominal_z_tolerance: 0.5
+      number_points_end_of_wings_to_delete: 2
+      quality_checks: true
+      file_prefix_side_map:
+        INT: int
+        EXT: ext
+    nominal:
+      section_file_path: "data/nominalsections/nominalSections1A.xlsx"
+      skeleton_file_path: "data/nominalskeletons/nominalSkeleton1A.xlsx"
+      heatmap_widthness_file_path: "data/nominalheatmapswidthness/heatmapNominalWidthness1A_PA.csv"
+      heatmap_thickness_intrados_file_path: "data/nominalheatmapsthickness/heatmapNominalThicknessIntrados1A.csv"
+      heatmap_thickness_extrados_file_path: "data/nominalheatmapsthickness/heatmapNominalThicknessExtrados1A.csv"
+      sectionlabel_to_znominalcoord_map:
+        CR03: 281.1
+        CR06: 329.1
+        CR10: 377.2
+        CR20: 441.1
+        CR30: 505.0
+        CR35: 537.0
+        CR40: 568.9
+        CR45: 600.8
+        CR50: 632.6
+        CR54: 664.5
+        CR58: 696.3
+        CR63: 728.2
+        CR67: 760.0
+        CR71: 791.9
+        CR75: 823.8
+        CR79: 855.8
+        CR84: 887.8
+        CR88: 919.8
+        CR90: 935.9
+        CR93: 968.1
+
+  # Part 362 (1A) - TECT PA (27 sections, standard)
+  - part_number: "362-850-019"
+    supplier: TECT
+    operation: OP420
+    mletracking: "mleTracking"
+    sections_count: 27
+    input_file_pattern: "*.MEA"
+    output_file_pattern: "{serial_number}_{supplier}_{part_number}_{operation}_{metric}.csv"
+    piece_folder_regex: "^\\D{2}\\d{6}-[A-Z0-9].*$"
+    geom_folder_name: "GEOM"
+    geom_file_extensions: [".mea", ".xyz"]
+    geom_file_regex: "(?P<side_indicator>[A-Za-z]?)(?P<section>\\d{2,3})"
+    folder_metadata_regex: ".*(?P<serial_number>\\D{2}\\d{6}-[A-Z0-9]).*$"
+    default_side: "int"
+    require_both_sides: false
+    strict_section_count: true
+    supplier_settings:
+      nominal_z_tolerance: 0.5
+      number_points_end_of_wings_to_delete: 2
+      quality_checks: true
+      file_prefix_side_map:
+        I: int
+        E: ext
+    nominal:
+      section_file_path: "data/nominalsections/nominalSections1APA.xlsx"
+      skeleton_file_path: "data/nominalskeletons/nominalSkeleton1APA.xlsx"
+      heatmap_widthness_file_path: "data/nominalheatmapswidthness/heatmapNominalWidthness1A_PA.csv"
+      heatmap_thickness_intrados_file_path: "data/nominalheatmapsthickness/heatmapNominalThicknessIntrados1A.csv"
+      heatmap_thickness_extrados_file_path: "data/nominalheatmapsthickness/heatmapNominalThicknessExtrados1A.csv"
+      sectionlabel_to_znominalcoord_map:
+        CR03: 281.1
+        CR05: 313.1
+        CR06: 329.1
+        CR08: 345.1
+        CR09: 361.1
+        CR10: 377.2
+        CR15: 409.2
+        CR20: 441.1
+        CR25: 473.1
+        CR30: 505.0
+        CR35: 537.0
+        CR40: 568.9
+        CR45: 600.8
+        CR50: 632.6
+        CR54: 664.5
+        CR58: 696.3
+        CR63: 728.2
+        CR67: 760.0
+        CR71: 791.9
+        CR75: 823.8
+        CR79: 855.8
+        CR84: 887.8
+        CR88: 919.8
+        CR90: 935.9
+        CR91: 952.0
+        CR93: 968.1
+        CR94: 984.2
+
+  # Part 364 (1B) - CZT (20 sections)
+  - part_number: "364-850-019"
+    supplier: CZT
+    operation: OP420
+    mletracking: "mleTracking"
+    sections_count: 20
+    input_file_pattern: "*.xyz"
+    output_file_pattern: "{serial_number}_{supplier}_{part_number}_{operation}_{metric}.csv"
+    piece_folder_regex: "^\\D{2}\\d{6}-[A-Z0-9].*$"
+    geom_folder_name: "GEOM"
+    geom_file_extensions: [".mea", ".xyz"]
+    geom_file_regex: "^Points_(?P<side_indicator>[A-Za-z]{3})_(?P<part_number>\\d{3}[-_]\\d{3}[-_]\\d{3}).*?_(?P<serial_number>[A-Z]{2}\\d{6}-[A-Z0-9]).*"
+    folder_metadata_regex: ".*(?P<serial_number>\\D{2}\\d{6}-[A-Z0-9]).*$"
+    default_side: "int"
+    require_both_sides: false
+    strict_section_count: true
+    supplier_settings:
+      nominal_z_tolerance: 0.5
+      number_points_end_of_wings_to_delete: 2
+      quality_checks: true
+      file_prefix_side_map:
+        INT: int
+        EXT: ext
+    nominal:
+      section_file_path: "data/nominalsections/nominalSections1B.xlsx"
+      skeleton_file_path: "data/nominalskeletons/nominalSkeleton1BOP420.xlsx"
+      heatmap_widthness_file_path: "data/nominalheatmapswidthness/heatmapNominalWidthness1B.csv"
+      heatmap_thickness_intrados_file_path: "data/nominalheatmapsthickness/heatmapNominalOP420ThicknessIntrados1B.csv"
+      heatmap_thickness_extrados_file_path: "data/nominalheatmapsthickness/heatmapNominalOP420ThicknessExtrados1B.csv"
+      sectionlabel_to_znominalcoord_map:
+        CR02: 250.2
+        CR03: 266.2
+        CR05: 282.2
+        CR10: 330.2
+        CR21: 392.2
+        CR30: 449.2
+        CR35: 478.1
+        CR40: 506.0
+        CR50: 562.7
+        CR54: 591.5
+        CR58: 619.4
+        CR63: 648.3
+        CR67: 676.2
+        CR71: 705.1
+        CR75: 733.1
+        CR80: 761.1
+        CR84: 790.2
+        CR88: 818.3
+        CR90: 831.4
+        CR92: 847.5
+        CR94: 860.6
+        CR95: 875.7
+
+  # Part 364 (1B) - TECT PA (27 sections, standard)
+  - part_number: "364-850-019"
+    supplier: TECT
+    operation: OP420
+    mletracking: "mleTracking"
+    sections_count: 27
+    input_file_pattern: "*.MEA"
+    output_file_pattern: "{serial_number}_{supplier}_{part_number}_{operation}_{metric}.csv"
+    piece_folder_regex: "^\\D{2}\\d{6}-[A-Z0-9].*$"
+    geom_folder_name: "GEOM"
+    geom_file_extensions: [".mea", ".xyz"]
+    geom_file_regex: "(?P<section_prefix>[A-Za-z]?)(?P<section>\\d{2,3})"
+    folder_metadata_regex: ".*(?P<serial_number>\\D{2}\\d{6}-[A-Z0-9]).*$"
+    default_side: "int"
+    require_both_sides: false
+    strict_section_count: true
+    supplier_settings:
+      nominal_z_tolerance: 0.5
+      number_points_end_of_wings_to_delete: 2
+      quality_checks: true
+      file_prefix_side_map:
+        I: int
+        E: ext
+    nominal:
+      section_file_path: "data/nominalsections/nominalSections1B.xlsx"
+      skeleton_file_path: "data/nominalskeletons/nominalSkeleton1BOP420.xlsx"
+      heatmap_widthness_file_path: "data/nominalheatmapswidthness/heatmapNominalWidthness1B.csv"
+      heatmap_thickness_intrados_file_path: "data/nominalheatmapsthickness/heatmapNominalOP420ThicknessIntrados1B.csv"
+      heatmap_thickness_extrados_file_path: "data/nominalheatmapsthickness/heatmapNominalOP420ThicknessExtrados1B.csv"
+      sectionlabel_to_znominalcoord_map:
+        CR02: 250.2
+        CR03: 266.2
+        CR05: 282.2
+        CR07: 298.2
+        CR08: 314.2
+        CR10: 330.2
+        CR16: 364.3
+        CR21: 392.2
+        CR26: 421.2
+        CR30: 449.2
+        CR35: 478.1
+        CR40: 506.0
+        CR45: 533.8
+        CR50: 562.7
+        CR54: 591.5
+        CR58: 619.4
+        CR63: 648.3
+        CR67: 676.2
+        CR71: 705.1
+        CR75: 733.1
+        CR80: 761.1
+        CR84: 790.2
+        CR88: 818.3
+        CR90: 831.4
+        CR92: 847.5
+        CR94: 860.6
+        CR95: 875.7

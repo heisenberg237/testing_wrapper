@@ -1,431 +1,453 @@
 """
-HeatmapValidator v3 — Canvas unique de variation normalisée
-============================================================
+postprocess_bolts.py
+====================
+Post-traitement des déformations plastiques des vis (brides de fût cylindrique)
+à partir d'un fichier d3plot LS-DYNA, en utilisant le package lasso-python.
 
-Visualisation principale :
-  - Grille de sous-graphes : lignes = plants, colonnes = PNs
-  - Chaque case = heatmap (axe X : SN, axe Y : métrique)
-  - Valeur = max(|TOVALID − REF|) sur tous les points (R,CR) du SN
-             normalisée par max(valeur REF) pour ce triplet métrique × plant × PN
-  - Colormap commune 0 → 1 (variation relative en % si ×100)
+Fonctionnalités :
+    - Chargement du d3plot (tous les fichiers d3plot* et le deck .k)
+    - Filtrage des parts d'intérêt (vis) par part_id
+    - Rognage des éléments dont la position Z des nœuds est inférieure à un seuil
+    - Extraction de la déformation plastique effective au dernier pas de temps
+    - Rapport trié par ordre décroissant de plasticité max par vis
 
-Dépendances : pandas, numpy, matplotlib, seaborn, tqdm
+Utilisation :
+    Adapter la section "CONFIGURATION" en bas de ce fichier, puis :
+        python postprocess_bolts.py
+
+Dépendances :
+    pip install lasso-python numpy
+
+Références API lasso :
+    https://open-lasso-python.github.io/lasso-python/dyna
 """
 
-import re
-import logging
-import warnings
+from __future__ import annotations
+
+import os
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Optional
 
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
-import seaborn as sns
-from tqdm import tqdm
 
-warnings.filterwarnings("ignore", category=FutureWarning)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(message)s",
-    datefmt="%H:%M:%S",
-)
-log = logging.getLogger("HeatmapValidator")
+# lasso-python — API publique LS-DYNA
+from lasso.dyna import D3plot, ArrayType
 
 
-# ───────────────────────────────────────────────────────────────────────────────
-# CLASSE
-# ───────────────────────────────────────────────────────────────────────────────
-class HeatmapValidator:
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
-    SN_REGEX = re.compile(r"[A-Za-z]{2}\d{6}-[A-Za-z0-9]")
-    METRICS  = ["chord", "widthness", "tangent"]
+def load_d3plot(d3plot_path: str | Path) -> D3plot:
+    """Charge le fichier d3plot (+ tous les fichiers d3plot001, d3plot002, …).
 
-    def __init__(
-        self,
-        ref_path: str,
-        tovalid_path: str,
-        tol: float = 1e-2,
-        output_dir: str = "plots",
-        n_workers: int = 8,
-    ):
-        self.ref_path     = Path(ref_path)
-        self.tovalid_path = Path(tovalid_path)
-        self.tol          = tol
-        self.n_workers    = n_workers
-        self.output_dir   = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+    Parameters
+    ----------
+    d3plot_path:
+        Chemin vers le fichier d3plot principal (ex: ``"./results/d3plot"``).
 
-        self.ref_index:    dict = {}
-        self.tovalid_index: dict = {}
-        self.results:      pd.DataFrame | None = None
+    Returns
+    -------
+    D3plot
+        Objet lasso contenant toutes les données de la simulation.
+    """
+    path = Path(d3plot_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Fichier d3plot introuvable : {path}")
 
-    # ── Extraction ────────────────────────────────────────────────────────────
-    def _extract_info(self, path: Path):
-        name   = path.name.lower()
-        parent = path.parent.name.lower()
+    print(f"[INFO] Chargement du d3plot : {path}")
+    d3 = D3plot(str(path))
+    print(f"[INFO] Chargement terminé.")
+    print(f"       Nombre de pas de temps : {len(d3.arrays[ArrayType.global_timesteps])}")
+    return d3
 
-        sn_match = self.SN_REGEX.search(name)
-        sn       = sn_match.group() if sn_match else None
-        metric   = next((m for m in self.METRICS if m in name), None)
 
-        try:
-            plant, pn, *_ = parent.split("_")
-        except ValueError:
-            plant, pn = None, None
+def get_shell_part_ids(d3: D3plot) -> np.ndarray:
+    """Retourne les part_ids uniques présents dans les éléments coques.
 
-        operation = "OP650" if plant == "mlx" else "OP420"
-        return sn, metric, plant, pn, operation
+    Parameters
+    ----------
+    d3:
+        Objet D3plot chargé.
 
-    # ── Indexation ────────────────────────────────────────────────────────────
-    def _index_files(self, root: Path) -> dict:
-        index = {}
-        for p in root.rglob("*.csv"):
-            sn, metric, plant, pn, operation = self._extract_info(p)
-            if sn and metric:
-                index[(sn, metric)] = {
-                    "path": p, "plant": plant, "pn": pn, "operation": operation,
-                }
-        return index
+    Returns
+    -------
+    np.ndarray
+        Tableau 1-D des part_ids présents dans les coques.
+    """
+    shell_part_ids = d3.arrays[ArrayType.element_shell_part_indexes]
+    # Les part indexes sont des indices 0-based dans le tableau des parts
+    part_ids_all = d3.arrays[ArrayType.part_ids]
+    unique_part_ids = np.unique(part_ids_all[np.unique(shell_part_ids)])
+    return unique_part_ids
 
-    def build_index(self):
-        log.info("Indexation REF    → %s", self.ref_path)
-        self.ref_index = self._index_files(self.ref_path)
-        log.info("  %d fichiers", len(self.ref_index))
 
-        log.info("Indexation TOVALID → %s", self.tovalid_path)
-        self.tovalid_index = self._index_files(self.tovalid_path)
-        log.info("  %d fichiers", len(self.tovalid_index))
+def filter_shells_by_parts(
+    d3: D3plot,
+    target_part_ids: list[int],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Retourne les indices globaux des éléments coques appartenant aux parts cibles.
 
-    # ── Chargement ────────────────────────────────────────────────────────────
-    def _load(self, path: Path) -> pd.DataFrame:
-        df = pd.read_csv(path)
-        df = df.rename(columns={df.columns[0]: "R"}).dropna(how="all")
-        df["R"] = df["R"].astype(str).str.extract(r"(\d+\.?\d*)")[0].astype(float)
+    Parameters
+    ----------
+    d3:
+        Objet D3plot chargé.
+    target_part_ids:
+        Liste des part_ids des vis à analyser.
 
-        new_cols = []
-        for col in df.columns:
-            if col == "R":
-                new_cols.append(col)
-            else:
-                val = re.search(r"(\d+\.?\d*)", str(col))
-                new_cols.append(float(val.group()) if val else np.nan)
-        df.columns = new_cols
-        return df
+    Returns
+    -------
+    shell_indices : np.ndarray
+        Indices (0-based) des éléments coques filtrés dans les tableaux d3plot.
+    element_ids : np.ndarray
+        IDs LS-DYNA correspondants de ces éléments.
+    """
+    all_part_ids = d3.arrays[ArrayType.part_ids]           # (n_parts,)
+    shell_part_idx = d3.arrays[ArrayType.element_shell_part_indexes]  # (n_shells,)
+    shell_ids = d3.arrays[ArrayType.element_shell_ids]     # (n_shells,)
 
-    def _to_long(self, df: pd.DataFrame) -> pd.DataFrame:
-        out = df.melt(id_vars="R", var_name="CR", value_name="value")
-        out["CR"]    = out["CR"].astype(float)
-        out["value"] = pd.to_numeric(out["value"], errors="coerce")
-        return out
+    # Construire un mapping part_id → part_index local
+    part_id_to_idx = {pid: i for i, pid in enumerate(all_part_ids)}
 
-    # ── Calcul d'une paire ────────────────────────────────────────────────────
-    def _process_pair(self, key, val_info, ref_info) -> dict | None:
-        try:
-            ref_long = self._to_long(self._load(ref_info["path"]))
-            val_long = self._to_long(self._load(val_info["path"]))
+    # Indices locaux des parts cibles
+    target_part_indices = set()
+    for pid in target_part_ids:
+        if pid not in part_id_to_idx:
+            print(f"[WARN] part_id={pid} introuvable dans le modèle — ignoré.")
+        else:
+            target_part_indices.add(part_id_to_idx[pid])
 
-            merged = ref_long.merge(val_long, on=["R", "CR"], suffixes=("_ref", "_val"))
-            mask   = merged["value_ref"].notna() & merged["value_val"].notna()
+    # Masque sur les éléments coques
+    mask = np.isin(shell_part_idx, list(target_part_indices))
+    shell_indices = np.where(mask)[0]
+    element_ids = shell_ids[shell_indices]
 
-            if mask.sum() == 0:
-                return None
+    print(f"[INFO] {len(shell_indices)} éléments coques trouvés pour les parts {target_part_ids}.")
+    return shell_indices, element_ids
 
-            diff       = np.abs(merged.loc[mask, "value_val"] - merged.loc[mask, "value_ref"])
-            max_diff   = diff.max()
-            ref_values = merged.loc[mask, "value_ref"].abs()
-            max_ref    = ref_values.max()
 
-            return {
-                "sn":      key[0],
-                "metric":  key[1],
-                "plant":   val_info["plant"],
-                "pn":      val_info["pn"],
-                "max_diff": max_diff,
-                "max_ref":  max_ref,        # sera utilisé pour normaliser par groupe
-            }
-        except Exception as exc:
-            log.warning("Erreur %s/%s : %s", key[0], key[1], exc)
-            return None
+def get_shell_node_coords_last_state(
+    d3: D3plot,
+    shell_indices: np.ndarray,
+) -> np.ndarray:
+    """Retourne les coordonnées moyennes en Z de chaque coque au dernier état.
 
-    # ── Pipeline ──────────────────────────────────────────────────────────────
-    def run(self) -> pd.DataFrame:
-        pairs = [
-            (key, self.tovalid_index[key], self.ref_index[key])
-            for key in self.tovalid_index
-            if key in self.ref_index
-        ]
-        log.info("Calcul de %d paires (workers=%d)…", len(pairs), self.n_workers)
+    On utilise la position des nœuds au dernier pas de temps (ou initiale
+    si les coordonnées déformées ne sont pas disponibles).
 
-        rows = []
-        with ThreadPoolExecutor(max_workers=self.n_workers) as pool:
-            futures = {pool.submit(self._process_pair, *p): p[0] for p in pairs}
-            for fut in tqdm(as_completed(futures), total=len(futures), desc="Validation"):
-                row = fut.result()
-                if row:
-                    rows.append(row)
+    Parameters
+    ----------
+    d3:
+        Objet D3plot chargé.
+    shell_indices:
+        Indices globaux (0-based) des éléments coques d'intérêt.
 
-        self.results = pd.DataFrame(rows)
+    Returns
+    -------
+    np.ndarray, shape (n_shells_filtered,)
+        Coordonnée Z moyenne de chaque élément.
+    """
+    # Connectivité coque : (n_shells, 4) nœuds par élément (Q4 ou T3 avec nœud dupliqué)
+    shell_node_ids = d3.arrays[ArrayType.element_shell_node_indexes]  # indices de nœuds (0-based)
 
-        # ── Normalisation : max(REF) par métrique × plant × PN ──────────────
-        grp_max_ref = (
-            self.results
-            .groupby(["metric", "plant", "pn"])["max_ref"]
-            .max()
-            .rename("group_max_ref")
-        )
-        self.results = self.results.join(
-            grp_max_ref, on=["metric", "plant", "pn"]
-        )
-        self.results["norm_diff"] = (
-            self.results["max_diff"] / self.results["group_max_ref"]
-        ).clip(upper=1.0)  # cap à 100 % pour l'échelle couleur
+    # Coordonnées des nœuds : soit déformées (timestep), soit initiales
+    if ArrayType.node_displacement in d3.arrays:
+        node_coords_init = d3.arrays[ArrayType.node_coordinates]      # (n_nodes, 3)
+        node_disp = d3.arrays[ArrayType.node_displacement]            # (n_timesteps, n_nodes, 3)
+        node_coords = node_coords_init + node_disp[-1]                # dernier pas
+    else:
+        node_coords = d3.arrays[ArrayType.node_coordinates]           # (n_nodes, 3) — géométrie initiale
 
-        log.info("Résultats : %d lignes", len(self.results))
-        return self.results
+    # Nœuds des éléments filtrés
+    shell_nodes = shell_node_ids[shell_indices]        # (n_filtered, 4)
+    z_coords = node_coords[shell_nodes, 2]             # (n_filtered, 4)  — composante Z
+    z_mean = z_coords.mean(axis=1)                     # (n_filtered,)
 
-    # ── Visualisation principale ───────────────────────────────────────────────
-    def plot_canvas(self, save: bool = True):
-        """
-        Canvas unique :
-          - Lignes  = plants  (ordre alphabétique)
-          - Colonnes = PNs    (ordre alphabétique)
-          - Chaque heatmap : axe X = SN (trié par erreur moyenne décroissante),
-                             axe Y = métrique
-          - Couleur = norm_diff  (0 → vert, 1 → rouge)
-          - Ligne de tolérance normalisée annotée
-        """
-        if self.results is None:
-            raise RuntimeError("Lance run() avant plot_canvas().")
+    return z_mean
 
-        plants = sorted(self.results["plant"].dropna().unique())
-        pns    = sorted(self.results["pn"].dropna().unique())
-        n_rows = len(plants)
-        n_cols = len(pns)
 
-        FIG_W  = max(6 * n_cols, 10)
-        FIG_H  = max(3.5 * n_rows, 5)
+def crop_shells_by_z(
+    shell_indices: np.ndarray,
+    element_ids: np.ndarray,
+    z_mean: np.ndarray,
+    z_threshold: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Supprime les éléments dont la position Z moyenne est inférieure au seuil.
 
-        fig, axes = plt.subplots(
-            n_rows, n_cols,
-            figsize=(FIG_W, FIG_H),
-            squeeze=False,
-        )
-        fig.patch.set_facecolor("#F8FAFC")
+    Parameters
+    ----------
+    shell_indices, element_ids, z_mean:
+        Sorties de ``filter_shells_by_parts`` et ``get_shell_node_coords_last_state``.
+    z_threshold:
+        Seuil en Z en dessous duquel les éléments sont exclus.
 
-        # Palette commune
-        cmap   = sns.color_palette("RdYlGn_r", as_cmap=True)
-        vmin, vmax = 0.0, 1.0
+    Returns
+    -------
+    shell_indices_cropped, element_ids_cropped : np.ndarray
+        Sous-ensemble conservé après rognage.
+    """
+    mask = z_mean >= z_threshold
+    n_removed = np.sum(~mask)
+    print(f"[INFO] Rognage Z < {z_threshold} : {n_removed} éléments supprimés, "
+          f"{np.sum(mask)} éléments conservés.")
+    return shell_indices[mask], element_ids[mask]
 
-        # ── Remplissage des sous-graphes ─────────────────────────────────────
-        for r, plant in enumerate(plants):
-            for c, pn in enumerate(pns):
-                ax = axes[r][c]
-                ax.set_facecolor("#F1F5F9")
 
-                subset = self.results[
-                    (self.results["plant"] == plant) &
-                    (self.results["pn"]    == pn)
-                ]
+def extract_plastic_strain_last_state(
+    d3: D3plot,
+    shell_indices: np.ndarray,
+) -> np.ndarray:
+    """Extrait la déformation plastique effective au dernier pas de temps.
 
-                if subset.empty:
-                    ax.text(
-                        0.5, 0.5, "Pas de données",
-                        ha="center", va="center",
-                        transform=ax.transAxes,
-                        color="#94A3B8", fontsize=9,
-                    )
-                    ax.set_xticks([]); ax.set_yticks([])
-                    _label_axes(ax, plant, pn, r, c, n_rows, n_cols, plants, pns)
-                    continue
+    LS-DYNA stocke la plasticité effective (effective plastic strain) dans
+    ``element_shell_effective_plastic_strain``.  Si cette variable n'est pas
+    disponible, une exception claire est levée.
 
-                # Pivot : SN × métrique → norm_diff
-                pivot = subset.pivot_table(
-                    index="metric", columns="sn", values="norm_diff"
-                )
+    Parameters
+    ----------
+    d3:
+        Objet D3plot chargé.
+    shell_indices:
+        Indices globaux (0-based) des éléments coques d'intérêt (après rognage).
 
-                # Trier les SN par erreur moyenne décroissante (pires à gauche)
-                sn_order = pivot.mean(axis=0).sort_values(ascending=False).index
-                pivot    = pivot[sn_order]
+    Returns
+    -------
+    np.ndarray, shape (n_shells_filtered,)
+        Valeur scalaire de plasticité effective pour chaque élément au dernier pas.
 
-                # Heatmap
-                sns.heatmap(
-                    pivot,
-                    ax=ax,
-                    cmap=cmap,
-                    vmin=vmin, vmax=vmax,
-                    linewidths=0.3,
-                    linecolor="#E2E8F0",
-                    cbar=False,
-                    annot=(pivot.shape[1] <= 20),   # annotations si peu de SN
-                    fmt=".2f",
-                    annot_kws={"size": 7},
-                    xticklabels=True,
-                    yticklabels=True,
-                )
+    Notes
+    -----
+    Le tableau peut être de forme ``(n_timesteps, n_shells)`` ou
+    ``(n_timesteps, n_shells, n_integration_points)``.  On prend le maximum
+    sur les points d'intégration si nécessaire.
+    """
+    key = ArrayType.element_shell_effective_plastic_strain
 
-                # Ligne de tolérance normalisée (pour référence visuelle)
-                # max_ref du groupe → tol / group_max_ref
-                for metric in pivot.index:
-                    gmr = subset.loc[
-                        subset["metric"] == metric, "group_max_ref"
-                    ].max()
-                    if gmr and gmr > 0:
-                        tol_norm = min(self.tol / gmr, 1.0)
-                        # on ne dessine pas de ligne par métrique ici
-                        # (serait illisible), on annote le titre à la place
-
-                # Axes labels
-                ax.set_xlabel("")
-                ax.set_ylabel("")
-                ax.tick_params(axis="x", labelsize=6, rotation=45, labelcolor="#475569")
-                ax.tick_params(axis="y", labelsize=8, rotation=0,  labelcolor="#1E293B")
-
-                _label_axes(ax, plant, pn, r, c, n_rows, n_cols, plants, pns)
-
-        # ── Colorbar commune ─────────────────────────────────────────────────
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=100))
-        sm.set_array([])
-        cbar = fig.colorbar(sm, ax=axes, fraction=0.015, pad=0.02, aspect=40)
-        cbar.set_label("Variation relative max  (%)", fontsize=10, labelpad=10)
-        cbar.ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:.0f}%"))
-        cbar.ax.tick_params(labelsize=8)
-
-        # ── Titre global ─────────────────────────────────────────────────────
-        fig.suptitle(
-            f"Variation normalisée  REF → TOVALID   "
-            f"(tolérance = {self.tol})\n"
-            "max|Δ| / max(REF)  par  métrique × plant × PN  —  SN triés par erreur décroissante",
-            fontsize=11, fontweight="normal", color="#1E293B",
-            y=1.01,
+    if key not in d3.arrays:
+        raise KeyError(
+            "La variable 'element_shell_effective_plastic_strain' est absente du d3plot.\n"
+            "Vérifiez que DATABASE_EXTENT_BINARY STRFLG=1 est actif dans votre deck .k."
         )
 
-        plt.tight_layout()
+    plastic_strain_all = d3.arrays[key]  # (n_timesteps, n_shells) ou (n_ts, n_shells, n_ip)
 
-        if save:
-            out_png  = self.output_dir / "variation_normalisee.png"
-            out_html = self.output_dir / "variation_normalisee_interactive.html"
-            fig.savefig(out_png, dpi=180, bbox_inches="tight", facecolor=fig.get_facecolor())
-            log.info("PNG sauvegardé → %s", out_png)
-            # version interactive via plotly (optionnel)
-            try:
-                _save_plotly_version(self.results, self.tol, out_html)
-                log.info("HTML interactif → %s", out_html)
-            except Exception as e:
-                log.debug("Plotly non disponible : %s", e)
+    # Dernier pas de temps
+    eps_last = plastic_strain_all[-1]    # (n_shells,) ou (n_shells, n_ip)
 
-        plt.show()
-        return fig
+    if eps_last.ndim == 2:
+        # Plusieurs points d'intégration → valeur max sur les IP
+        eps_last = eps_last.max(axis=-1)
+
+    return eps_last[shell_indices]
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def _label_axes(ax, plant, pn, r, c, n_rows, n_cols, plants, pns):
-    """Titres de lignes (plant) et colonnes (PN) en bord de grille."""
-    if r == 0:
-        ax.set_title(f"PN : {pn}", fontsize=9, fontweight="normal",
-                     color="#0C447C", pad=6)
-    if c == 0:
-        ax.set_ylabel(
-            plant.upper(), fontsize=9, fontweight="normal",
-            color="#0C447C", labelpad=8,
-        )
+def build_part_index_map(
+    d3: D3plot,
+    shell_indices: np.ndarray,
+    target_part_ids: list[int],
+) -> dict[int, np.ndarray]:
+    """Construit un mapping part_id → indices locaux dans ``shell_indices``.
+
+    Parameters
+    ----------
+    d3:
+        Objet D3plot chargé.
+    shell_indices:
+        Indices globaux des éléments coques filtrés + rognés.
+    target_part_ids:
+        Liste des part_ids à analyser.
+
+    Returns
+    -------
+    dict[int, np.ndarray]
+        Clé = part_id, valeur = tableau des positions (0-based) dans shell_indices
+        qui appartiennent à ce part_id.
+    """
+    all_part_ids = d3.arrays[ArrayType.part_ids]
+    shell_part_idx = d3.arrays[ArrayType.element_shell_part_indexes]
+
+    part_id_to_idx = {pid: i for i, pid in enumerate(all_part_ids)}
+
+    mapping: dict[int, np.ndarray] = {}
+    for pid in target_part_ids:
+        if pid not in part_id_to_idx:
+            continue
+        local_part_idx = part_id_to_idx[pid]
+        # Parmi les éléments filtrés, lesquels appartiennent à ce part ?
+        local_positions = np.where(shell_part_idx[shell_indices] == local_part_idx)[0]
+        mapping[pid] = local_positions
+
+    return mapping
 
 
-def _save_plotly_version(results: pd.DataFrame, tol: float, path: Path):
-    """Version interactive Plotly du même canvas (optionnel)."""
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
+# ---------------------------------------------------------------------------
+# Analyse principale
+# ---------------------------------------------------------------------------
 
-    plants = sorted(results["plant"].dropna().unique())
-    pns    = sorted(results["pn"].dropna().unique())
+def analyse_bolt_plasticity(
+    d3plot_path: str | Path,
+    bolt_part_ids: list[int],
+    z_threshold: float = 319.0,
+    output_file: str | Path = "bolt_plasticity_report.txt",
+) -> None:
+    """Analyse complète des déformations plastiques des vis.
 
-    fig = make_subplots(
-        rows=len(plants), cols=len(pns),
-        subplot_titles=[
-            f"{pl.upper()} | {pn}"
-            for pl in plants for pn in pns
-        ],
-        horizontal_spacing=0.05,
-        vertical_spacing=0.12,
+    Étapes :
+        1. Chargement du d3plot.
+        2. Filtrage des éléments coques appartenant aux vis.
+        3. Rognage des éléments sous le seuil Z.
+        4. Extraction de la plasticité effective au dernier pas de temps.
+        5. Pour chaque vis : identification de l'élément max.
+        6. Écriture du rapport trié par plasticité décroissante.
+
+    Parameters
+    ----------
+    d3plot_path:
+        Chemin vers le fichier d3plot principal.
+    bolt_part_ids:
+        Liste des part_ids des vis à analyser.
+    z_threshold:
+        Seuil de rognage en Z (les éléments sous ce seuil sont exclus).
+    output_file:
+        Chemin du fichier texte de sortie.
+    """
+    # -- 1. Chargement -------------------------------------------------------
+    d3 = load_d3plot(d3plot_path)
+
+    # -- 2. Filtrage par part_id ---------------------------------------------
+    shell_indices, element_ids = filter_shells_by_parts(d3, bolt_part_ids)
+
+    if len(shell_indices) == 0:
+        print("[ERROR] Aucun élément coque trouvé pour les parts spécifiées. Abandon.")
+        return
+
+    # -- 3. Rognage en Z -----------------------------------------------------
+    z_mean = get_shell_node_coords_last_state(d3, shell_indices)
+    shell_indices, element_ids = crop_shells_by_z(
+        shell_indices, element_ids, z_mean, z_threshold
     )
 
-    for r, plant in enumerate(plants, 1):
-        for c, pn in enumerate(pns, 1):
-            subset = results[
-                (results["plant"] == plant) &
-                (results["pn"]    == pn)
-            ]
-            if subset.empty:
-                continue
+    if len(shell_indices) == 0:
+        print("[ERROR] Aucun élément conservé après rognage Z. Vérifiez le seuil.")
+        return
 
-            pivot = subset.pivot_table(
-                index="metric", columns="sn", values="norm_diff"
+    # -- 4. Plasticité au dernier pas de temps --------------------------------
+    plastic_strain = extract_plastic_strain_last_state(d3, shell_indices)
+
+    # -- 5. Mapping par vis ---------------------------------------------------
+    part_map = build_part_index_map(d3, shell_indices, bolt_part_ids)
+
+    # Récupère le dernier temps de simulation
+    timesteps = d3.arrays[ArrayType.global_timesteps]
+    last_time = float(timesteps[-1])
+
+    # -- 6. Construction et écriture du rapport --------------------------------
+    results: list[dict] = []
+
+    for pid, local_pos in part_map.items():
+        if len(local_pos) == 0:
+            results.append({
+                "part_id": pid,
+                "max_plastic_strain": 0.0,
+                "element_id_max": -1,
+                "n_elements": 0,
+            })
+            continue
+
+        part_strains = plastic_strain[local_pos]
+        part_elem_ids = element_ids[local_pos]
+
+        idx_max = int(np.argmax(part_strains))
+        results.append({
+            "part_id": pid,
+            "max_plastic_strain": float(part_strains[idx_max]),
+            "element_id_max": int(part_elem_ids[idx_max]),
+            "n_elements": len(local_pos),
+        })
+
+    # Tri décroissant par plasticité max
+    results.sort(key=lambda r: r["max_plastic_strain"], reverse=True)
+
+    # Écriture du rapport
+    output_path = Path(output_file)
+    with open(output_path, "w", encoding="utf-8") as f:
+        header = (
+            "=" * 70 + "\n"
+            "  RAPPORT DE DÉFORMATION PLASTIQUE DES VIS — LS-DYNA\n"
+            "=" * 70 + "\n"
+            f"  Fichier d3plot   : {Path(d3plot_path).resolve()}\n"
+            f"  Dernier temps    : {last_time:.6e} s\n"
+            f"  Seuil de rognage : Z >= {z_threshold}\n"
+            f"  Nombre de vis    : {len(bolt_part_ids)}\n"
+            "=" * 70 + "\n\n"
+        )
+        f.write(header)
+        print(header, end="")
+
+        col_header = (
+            f"{'Rang':<6} {'Part ID':<10} {'Plasticité max':<20} "
+            f"{'Élément ID (max)':<20} {'N éléments':<12}\n"
+        )
+        separator = "-" * 70 + "\n"
+        f.write(col_header)
+        f.write(separator)
+        print(col_header, end="")
+        print(separator, end="")
+
+        for rank, res in enumerate(results, start=1):
+            line = (
+                f"{rank:<6} {res['part_id']:<10} {res['max_plastic_strain']:<20.6e} "
+                f"{res['element_id_max']:<20} {res['n_elements']:<12}\n"
             )
-            sn_order = pivot.mean(axis=0).sort_values(ascending=False).index
-            pivot    = pivot[sn_order]
+            f.write(line)
+            print(line, end="")
 
-            fig.add_trace(
-                go.Heatmap(
-                    z=pivot.values * 100,
-                    x=list(pivot.columns),
-                    y=list(pivot.index),
-                    colorscale="RdYlGn_r",
-                    zmin=0, zmax=100,
-                    showscale=(r == 1 and c == len(pns)),
-                    colorbar=dict(
-                        title="Variation (%)",
-                        ticksuffix="%",
-                        len=0.5,
-                    ),
-                    hovertemplate=(
-                        "SN: %{x}<br>"
-                        "Métrique: %{y}<br>"
-                        "Variation: %{z:.1f}%<extra></extra>"
-                    ),
-                ),
-                row=r, col=c,
-            )
+        f.write("\n" + "=" * 70 + "\n")
+        print("\n" + "=" * 70)
 
-    fig.update_layout(
-        title=dict(
-            text=(
-                f"Variation normalisée REF → TOVALID  (tol={tol})<br>"
-                "<sup>max|Δ| / max(REF) par métrique × plant × PN — SN triés par erreur décroissante</sup>"
-            ),
-            x=0.5, xanchor="center", font=dict(size=14),
-        ),
-        height=350 * len(plants),
-        paper_bgcolor="#F8FAFC",
-        plot_bgcolor="#F8FAFC",
-        font=dict(family="IBM Plex Sans, Arial", color="#1E293B"),
-        margin=dict(t=100, b=60, l=80, r=80),
-    )
-
-    fig.write_html(str(path))
+    print(f"\n[INFO] Rapport écrit dans : {output_path.resolve()}")
 
 
-# ───────────────────────────────────────────────────────────────────────────────
-# ENTRY POINT
-# ───────────────────────────────────────────────────────────────────────────────
-def main():
-    REF_PATH     = r"\\nas23\CEI_IX_BUROTIK1_m\Jordan_Ngucho\Heatmap_Validation\data_validation\heatmap"
-    TOVALID_PATH = r"\\nas23\CEI_IX_BUROTIK1_m\Jordan_Ngucho\Heatmap_Validation\data_validation\predict"
-    OUTPUT_DIR   = r"\\nas23\CEI_IX_BUROTIK1_m\Jordan_Ngucho\Heatmap_Validation\plots"
-
-    v = HeatmapValidator(
-        ref_path=REF_PATH,
-        tovalid_path=TOVALID_PATH,
-        tol=1e-2,
-        output_dir=OUTPUT_DIR,
-        n_workers=8,
-    )
-
-    v.build_index()
-    v.run()
-    v.plot_canvas(save=True)
-
+# ---------------------------------------------------------------------------
+# CONFIGURATION — À ADAPTER AVANT EXÉCUTION
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    main()
+
+    # -----------------------------------------------------------------------
+    # Chemin vers le fichier d3plot principal
+    # (lasso charge automatiquement les fichiers d3plot001, d3plot002, … dans le
+    #  même répertoire)
+    # -----------------------------------------------------------------------
+    D3PLOT_PATH = "./results/d3plot"
+
+    # -----------------------------------------------------------------------
+    # Liste des part_ids correspondant aux vis de la bride
+    # Remplacer par vos vraies valeurs.
+    # -----------------------------------------------------------------------
+    BOLT_PART_IDS: list[int] = [
+        101, 102, 103, 104, 105, 106,
+        107, 108, 109, 110, 111, 112,
+    ]
+
+    # -----------------------------------------------------------------------
+    # Seuil de rognage en Z :
+    # Les éléments dont la coordonnée Z moyenne est INFÉRIEURE à cette valeur
+    # sont exclus de l'analyse.
+    # -----------------------------------------------------------------------
+    Z_THRESHOLD: float = 319.0
+
+    # -----------------------------------------------------------------------
+    # Fichier de sortie du rapport
+    # -----------------------------------------------------------------------
+    OUTPUT_FILE = "bolt_plasticity_report.txt"
+
+    # -----------------------------------------------------------------------
+    # Lancement de l'analyse
+    # -----------------------------------------------------------------------
+    analyse_bolt_plasticity(
+        d3plot_path=D3PLOT_PATH,
+        bolt_part_ids=BOLT_PART_IDS,
+        z_threshold=Z_THRESHOLD,
+        output_file=OUTPUT_FILE,
+    )
